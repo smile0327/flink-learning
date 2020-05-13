@@ -4,6 +4,7 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -18,6 +19,8 @@ import com.kevin.study.flink.StationLog;
 
 import javax.annotation.Nullable;
 
+import java.sql.Timestamp;
+
 /**
  * @Auther: kevin
  * @Description:  Flink定时器测试
@@ -28,9 +31,9 @@ import javax.annotation.Nullable;
  */
 public class ProcessFunctionTest {
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(1);
+        env.setParallelism(3);
 
         env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
@@ -41,7 +44,11 @@ public class ProcessFunctionTest {
             return new StationLog(split[0], split[1], split[2], split[3], Long.valueOf(split[4]), Long.valueOf(split[5]));
         }).assignTimestampsAndWatermarks(new MyWatermarks());
 
+        logStream.keyBy("sid")
+                .process(new MonitorDeletedDataFunc())
+                .print();
 
+        env.execute("timeTestTask");
 
     }
 }
@@ -63,7 +70,7 @@ class MyWatermarks implements AssignerWithPeriodicWatermarks<StationLog>{
     }
 }
 
-class MonitorDeletedDataFunc extends KeyedProcessFunction<String , StationLog , String>{
+class MonitorDeletedDataFunc extends KeyedProcessFunction<Tuple , StationLog , String>{
 
     ValueState<Long> state;
 
@@ -80,21 +87,25 @@ class MonitorDeletedDataFunc extends KeyedProcessFunction<String , StationLog , 
             如果该key的数据不再接收了，那么定时器就会在将来某个时刻触发。
          */
         //清空定时器
-        ctx.timerService().deleteEventTimeTimer(time);
+        if (time != null) {
+            ctx.timerService().deleteEventTimeTimer(time);
+        }
         Long nowTime = value.getCallTime();
         //5s后触发
-        Long onTime = nowTime + 5000;
+        Long onTime = nowTime + 5 * 1000;
+        System.out.println("线程ID:" + Thread.currentThread().getId() + ",key:" + value.getSid() + " 注册定时器.当前时间：" + new Timestamp(nowTime) + ",定时器时间：" + new Timestamp(onTime));
         //注册定时器
         ctx.timerService().registerEventTimeTimer(onTime);
         //更新状态
-        state.update(nowTime);
+        state.update(onTime);
     }
 
     @Override
     public void onTimer(long timestamp, OnTimerContext ctx, Collector<String> out) throws Exception {
         //定时器执行逻辑
         //处理完之后，不清空定时器，让定时器能继续执行
-
-        super.onTimer(timestamp, ctx, out);
+        String result = "线程ID:" + Thread.currentThread().getId() + ",key:" + ctx.getCurrentKey().getField(0) + " , 触发时间:" + new Timestamp(timestamp);
+        out.collect(result);
+        state.clear();
     }
 }
