@@ -7,6 +7,7 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.TimeCharacteristic;
+import org.apache.flink.streaming.api.TimerService;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -33,7 +34,7 @@ public class ProcessFunctionTest {
 
     public static void main(String[] args) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(3);
+        env.setParallelism(1);
 
         env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
@@ -44,7 +45,7 @@ public class ProcessFunctionTest {
             return new StationLog(split[0], split[1], split[2], split[3], Long.valueOf(split[4]), Long.valueOf(split[5]));
         }).assignTimestampsAndWatermarks(new MyWatermarks());
 
-        logStream.keyBy("sid")
+        logStream.keyBy("sid" , "callOut")
                 .process(new MonitorDeletedDataFunc())
                 .print();
 
@@ -73,6 +74,8 @@ class MyWatermarks implements AssignerWithPeriodicWatermarks<StationLog>{
 class MonitorDeletedDataFunc extends KeyedProcessFunction<Tuple , StationLog , String>{
 
     ValueState<Long> state;
+    TimerService timerService;
+
 
     @Override
     public void open(Configuration parameters) throws Exception {
@@ -86,16 +89,19 @@ class MonitorDeletedDataFunc extends KeyedProcessFunction<Tuple , StationLog , S
             每次接收到消息后先清空定时器，将当前数据的time写入到state，然后注册定时器，
             如果该key的数据不再接收了，那么定时器就会在将来某个时刻触发。
          */
+        if(timerService == null){
+            timerService = ctx.timerService();
+        }
         //清空定时器
         if (time != null) {
-            ctx.timerService().deleteEventTimeTimer(time);
+            timerService.deleteEventTimeTimer(time);
         }
         Long nowTime = value.getCallTime();
         //5s后触发
         Long onTime = nowTime + 5 * 1000;
-        System.out.println("线程ID:" + Thread.currentThread().getId() + ",key:" + value.getSid() + " 注册定时器.当前时间：" + new Timestamp(nowTime) + ",定时器时间：" + new Timestamp(onTime));
+        System.out.println("线程ID:" + Thread.currentThread().getId() + ",key:" + ctx.getCurrentKey() + " 注册定时器.当前时间：" + new Timestamp(nowTime) + ",定时器时间：" + new Timestamp(onTime));
         //注册定时器
-        ctx.timerService().registerEventTimeTimer(onTime);
+        timerService.registerEventTimeTimer(onTime);
         //更新状态
         state.update(onTime);
     }
@@ -104,7 +110,10 @@ class MonitorDeletedDataFunc extends KeyedProcessFunction<Tuple , StationLog , S
     public void onTimer(long timestamp, OnTimerContext ctx, Collector<String> out) throws Exception {
         //定时器执行逻辑
         //处理完之后，不清空定时器，让定时器能继续执行
-        String result = "线程ID:" + Thread.currentThread().getId() + ",key:" + ctx.getCurrentKey().getField(0) + " , 触发时间:" + new Timestamp(timestamp);
+        String result = "线程ID:" + Thread.currentThread().getId() + ",key:" + ctx.getCurrentKey() + " , 触发时间:" + new Timestamp(timestamp);
+//        long onTime = timestamp + 5 * 1000;
+//        timerService.registerEventTimeTimer(onTime);
+//        System.out.println("线程ID:" + Thread.currentThread().getId() + ",key:" + ctx.getCurrentKey().getField(0) + " 注册定时器.当前时间：" + new Timestamp(timestamp) + ",定时器时间：" + new Timestamp(onTime));
         out.collect(result);
         state.clear();
     }
