@@ -9,7 +9,7 @@
     <version>1.0-SNAPSHOT</version>
 
     <properties>
-        <flink.version>1.9.1</flink.version>
+        <flink.version>1.10.0</flink.version>
     </properties>
 
     <dependencies>
@@ -99,6 +99,12 @@
             <!--<scope>provided</scope>-->
         </dependency>
 
+        <!-- https://mvnrepository.com/artifact/org.apache.flink/flink-sql-client -->
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-sql-client_2.11</artifactId>
+            <version>${flink.version}</version>
+        </dependency>
 
         <!-- https://mvnrepository.com/artifact/org.apache.flink/flink-json -->
         <dependency>
@@ -119,6 +125,11 @@
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-cep_2.11</artifactId>
             <version>${flink.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.12</version>
         </dependency>
 
 

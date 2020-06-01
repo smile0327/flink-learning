@@ -26,14 +26,14 @@ object HDSFSink {
       .build() //创建
 
     //创建HDFS的Sink
-    val hdfsSink: StreamingFileSink[StationLog] = StreamingFileSink.forRowFormat[StationLog](
-      new Path("hdfs://hadoop101:9000/MySink001/"),
-      new SimpleStringEncoder[StationLog]("UTF-8"))
-      .withRollingPolicy(rolling)
-      .withBucketCheckInterval(1000) //检查间隔时间
-      .build()
+//    val hdfsSink: StreamingFileSink[StationLog] = StreamingFileSink.forRowFormat[StationLog](
+//      new Path("hdfs://hadoop101:9000/MySink001/"),
+//      new SimpleStringEncoder[StationLog]("UTF-8"))
+//      .withRollingPolicy(rolling)
+//      .withBucketCheckInterval(1000) //检查间隔时间
+//      .build()
 
-    stream.addSink(hdfsSink)
+//    stream.addSink(hdfsSink)
 
     streamEnv.execute()
   }
