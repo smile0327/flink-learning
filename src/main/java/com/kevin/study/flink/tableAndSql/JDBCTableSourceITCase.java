@@ -54,7 +54,7 @@ public class JDBCTableSourceITCase {
 				.build();
 		StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, envSettings);
 
-		String stmt = "CREATE TABLE " + INPUT_TABLE_BASEVOLTAGE + "(" +
+		String bvStmt = "CREATE TABLE " + INPUT_TABLE_BASEVOLTAGE + "(" +
 				"id BIGINT," +
 				"system_id VARCHAR," +
 				"mrid VARCHAR," +
@@ -70,28 +70,32 @@ public class JDBCTableSourceITCase {
 				"	'connector.password' = '" + CONNECT_PASSWORD + "'" +
 				")";
 		tEnv.sqlUpdate(
-				stmt
+				bvStmt
 		);
-		System.out.println(stmt);
+		System.out.println(bvStmt + ";");
+
+		String vlStmt = "CREATE TABLE " + INPUT_TABLE_VOLTAGELEVEL + "(" +
+				"id BIGINT," +
+				"system_id VARCHAR," +
+				"mrid VARCHAR," +
+				"name VARCHAR," +
+				"substation VARCHAR," +
+				"baseVoltage VARCHAR," +
+				"last_refresh_time TIMESTAMP(3)" +
+				") WITH (" +
+				"  'connector.type' = 'jdbc'," +
+				"  'connector.url' = '" + DB_URL + "'," +
+				"  'connector.table' = '" + INPUT_TABLE_VOLTAGELEVEL + "'," +
+				"	'connector.driver' = '" + DRIVER_CLASS + "'," +
+				"	'connector.username' = '" + CONNECT_USERNAME + "'," +
+				"	'connector.password' = '" + CONNECT_PASSWORD + "'" +
+				")";
 
 		tEnv.sqlUpdate(
-				"CREATE TABLE " + INPUT_TABLE_VOLTAGELEVEL + "(" +
-						"id BIGINT," +
-						"system_id VARCHAR," +
-						"mrid VARCHAR," +
-						"name VARCHAR," +
-						"substation VARCHAR," +
-						"baseVoltage VARCHAR," +
-						"last_refresh_time TIMESTAMP" +
-						") WITH (" +
-						"  'connector.type' = 'jdbc'," +
-						"  'connector.url' = '" + DB_URL + "'," +
-						"  'connector.table' = '" + INPUT_TABLE_VOLTAGELEVEL + "'," +
-						"	'connector.driver' = '" + DRIVER_CLASS + "'," +
-						"	'connector.username' = '" + CONNECT_USERNAME + "'," +
-						"	'connector.password' = '" + CONNECT_PASSWORD + "'" +
-						")"
+				vlStmt
 		);
+
+		System.out.println(vlStmt + ";");
 
 /*
 		DataStream<Row> bvStream = tEnv.toRetractStream(tEnv.sqlQuery("SELECT * FROM " + INPUT_TABLE_BASEVOLTAGE), Row.class)
@@ -121,9 +125,9 @@ public class JDBCTableSourceITCase {
 				.filter(t->t.f0)
 				.print();
 
-//		Table queryTable = tEnv.sqlQuery("SELECT vl.system_id,vl.mrid,vl.name,vl.substation,vl.baseVoltage,bv.name,bv.nomkv " +
-//				" FROM " + INPUT_TABLE_BASEVOLTAGE + " AS bv JOIN " + INPUT_TABLE_VOLTAGELEVEL + " AS vl " +
-//				" ON bv.mrid = vl.baseVoltage");
+		Table queryTable = tEnv.sqlQuery("SELECT vl.system_id,vl.mrid,vl.name,vl.substation,vl.baseVoltage,bv.name,bv.nomkv " +
+				" FROM " + INPUT_TABLE_BASEVOLTAGE + " AS bv JOIN " + INPUT_TABLE_VOLTAGELEVEL + " AS vl " +
+				" ON bv.mrid = vl.baseVoltage");
 
 //		tEnv.toRetractStream(queryTable , Row.class).print();
 
